@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* Bridge the v3-style tailwind.config.ts into Tailwind v4 so the semantic
+   utilities (bg-background, text-heading, font-heading, max-w-page, shadow-md,
+   p-lg, etc.) resolve from theme.extend. */
+@config "../../tailwind.config.ts";
+
+/* GOTCHA: the custom `spacing` keys in tailwind.config.ts (sm/md/lg/xl/2xl) outrank
+   theme.maxWidth under the @config bridge, so `max-w-md`/`xl`/`2xl` resolve to tiny
+   SPACING values instead of container widths — collapsing modals/fields. `max-w-3xl+`
+   and the custom `max-w-page` are collision-free. For a small/medium max-width use an
+   arbitrary value (e.g. `max-w-[28rem]`) rather than the named `max-w-md`/`xl`/`2xl`. */
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #0b1220;
+  color: #aeb9c4;
+  font-family: var(--font-sans), Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Hide horizontal scrollbars on content shelves while keeping scroll */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
