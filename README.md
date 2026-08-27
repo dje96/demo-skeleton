@@ -45,7 +45,7 @@ Then, per demo:
 ## Replace per demo
 
 `src/lib/config.ts` values · `tailwind.config.ts` palette/fonts · `globals.css` body
-colors · `src/components/Header.tsx` (stub) · `src/app/page.tsx` (stub) · all industry
+colors · a header (none shipped — build one, wire to `useUser()`) · `src/app/page.tsx` (stub) · all industry
 pages, catalog data, images, and the intervention banner copy · `src/lib/tracking.ts`
 (stub — regenerate with Snowtype from your data products).
 

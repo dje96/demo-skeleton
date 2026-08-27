@@ -4,7 +4,6 @@ import { Inter, IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
 import { siteConfig } from '@/lib/config';
 import SnowplowInit from '@/components/snowplow-init';
-import Header from '@/components/Header';
 import DemoFooter from '@/components/DemoFooter';
 import ConsentManager from '@/components/ConsentManager';
 import SignalsInspector from '@/components/SignalsInspector';
@@ -58,7 +57,11 @@ export default function RootLayout({
       <body className="flex min-h-screen flex-col bg-background font-body text-body">
         <SnowplowInit>
           <InterventionBanner />
-          <Header />
+          {/*
+            The skeleton ships NO header. Auth/identity is headless — build your
+            demo's own header and wire it to `useUser()` (login / signup /
+            logout) from '@/contexts/user-context'. Render it here.
+          */}
           <main className="flex-1">{children}</main>
           <DemoFooter />
           <ConsentManager />

@@ -26,6 +26,7 @@ interface UserContextValue {
   isLoggedIn: boolean;
   isLoading: boolean;
   login: (email: string, method?: LoginMethod) => void;
+  signup: (email: string, method?: LoginMethod) => void;
   logout: () => void;
 }
 
@@ -71,16 +72,39 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  const login = useCallback((email: string, method: LoginMethod = 'email') => {
-    const nextUser: DemoUser = { email, isLoggedIn: true };
-    setUser(nextUser);
-    window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(nextUser));
-    // The anonymous → known stitch: set the user id and leave anonymous mode
-    // BEFORE the login event fires.
-    setUserForTracking(email);
-    disableAnonymousMode();
-    trackLogin({ login_method: method, login_status: 'success' });
-  }, []);
+  // Establish a known identity and stitch it into the tracker. The anonymous →
+  // known stitch: set the user id and leave anonymous mode BEFORE the event
+  // fires, so the event (and everything after) is attributed to the known user.
+  const establishIdentity = useCallback(
+    (email: string) => {
+      const nextUser: DemoUser = { email, isLoggedIn: true };
+      setUser(nextUser);
+      window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(nextUser));
+      setUserForTracking(email);
+      disableAnonymousMode();
+      return nextUser;
+    },
+    []
+  );
+
+  const login = useCallback(
+    (email: string, method: LoginMethod = 'email') => {
+      establishIdentity(email);
+      trackLogin({ login_method: method, login_status: 'success' });
+    },
+    [establishIdentity]
+  );
+
+  // Sign up = same identity stitch as login. A finished demo can fire a distinct
+  // sign-up event here (add it to lib/tracking.ts); the stub reuses the login
+  // event so the skeleton stays schema-light.
+  const signup = useCallback(
+    (email: string, method: LoginMethod = 'email') => {
+      establishIdentity(email);
+      trackLogin({ login_method: method, login_status: 'success' });
+    },
+    [establishIdentity]
+  );
 
   const logout = useCallback(() => {
     setUser(null);
@@ -95,6 +119,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         isLoggedIn: Boolean(user?.isLoggedIn),
         isLoading,
         login,
+        signup,
         logout,
       }}
     >
