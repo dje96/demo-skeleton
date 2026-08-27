@@ -114,9 +114,16 @@ export interface SnowplowConfig {
   signalsService: string;
   /** Attribute key the session service is keyed on. */
   signalsAttributeKey: string;
-  /** Shared service that resolves snowplow_id from domain_userid. */
+  /**
+   * Shared, cross-demo service that resolves snowplow_id from domain_userid.
+   * Default `snowplow_id_retrieval` is a real published service on the sales
+   * pipeline (bundles the `last_snowplow_id` attribute group) — every demo reuses
+   * it as-is; do NOT rename per demo. It reads the `snowplow_id` from the
+   * pipeline's identity entity, so it only populates once the Identity enrichment
+   * is attaching that entity to events.
+   */
   idService: string;
-  /** Attribute key the id service is keyed on. */
+  /** Attribute key the id service is keyed on. Always `domain_userid`. */
   idAttributeKey: string;
   /** Name of the published intervention the demo surfaces. */
   interventionName: string;
@@ -186,6 +193,7 @@ export const siteConfig: SiteConfig = {
     signalsApiUrl: "",
     signalsService: "demo_skeleton_session",
     signalsAttributeKey: "domain_sessionid",
+    // Shared, cross-demo service — leave as-is (see interface doc above).
     idService: "snowplow_id_retrieval",
     idAttributeKey: "domain_userid",
     interventionName: "demo_skeleton_nudge",

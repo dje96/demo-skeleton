@@ -56,9 +56,11 @@ export async function getRawSessionAttributes(
 }
 
 /**
- * Resolve the current snowplow_id for a browser via the id service, keyed by
- * domain_userid. Returns null when Signals is unconfigured, the identifier is
- * missing, or no snowplow_id has been computed yet.
+ * Resolve the current snowplow_id for a browser via the shared `snowplow_id_retrieval`
+ * service (attribute group `last_snowplow_id`), keyed by domain_userid. The service
+ * serves a `snowplow_id` attribute derived from the pipeline's identity entity, so a
+ * value only appears once that entity is on events. Returns null when Signals is
+ * unconfigured, the identifier is missing, or no snowplow_id has been computed yet.
  */
 export async function getSnowplowId(
   domainUserid: string
