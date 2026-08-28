@@ -1,7 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Activity, Check, Fingerprint, Wifi, X, Zap } from 'lucide-react';
+import {
+  Activity,
+  Check,
+  Database,
+  Fingerprint,
+  Lock,
+  Wifi,
+  X,
+  Zap,
+} from 'lucide-react';
 
 import {
   getSessionId,
@@ -14,10 +23,19 @@ import { useUser } from '@/contexts/user-context';
 
 /* ---------------------------------------------------------------------------
  * Presenter-only panel that visualizes the live Snowplow Signals state for the
- * current session: every attribute the session service returns, the visitor's
- * identities, and a monitor for the published intervention showing each
- * eligibility clause (from siteConfig.snowplow.interventionClauses) with a live
- * met/unmet tick. A "trigger" button fires the intervention on demand.
+ * current session. Layout, top → bottom:
+ *
+ *   • Identities   — snowplow_id / domain_userid / user_id (persists across tabs)
+ *   • Stream | Warehouse tabs:
+ *       - Stream    — real-time attributes from the session service
+ *       - Warehouse — batch attributes. Two sources (siteConfig.warehouse):
+ *           · "service" → a real Signals batch service (always clickable)
+ *           · "mock"    → siteConfig.warehouse.mockAttributes. When
+ *             warehouse.identityGate is true the tab stays greyed/locked until
+ *             the resolved snowplow_id equals NEXT_PUBLIC_WAREHOUSE_UNLOCK_SNOWPLOW_ID,
+ *             mimicking "batch attrs appear once Snowplow Identity resolves".
+ *   • Interventions — each eligibility clause (siteConfig.snowplow.interventionClauses)
+ *     with a live met/unmet tick + a manual "trigger" button (persists across tabs)
  *
  * Visible to demo presenters only — polls /api/signals every few seconds while
  * open.
@@ -25,7 +43,13 @@ import { useUser } from '@/contexts/user-context';
 
 const POLL_MS = 4000;
 
+// Mock-mode identity gate: the snowplow_id that unlocks the Warehouse tab. See
+// .env.example / siteConfig.warehouse. Empty ⇒ tab stays locked in gated mode.
+const WAREHOUSE_UNLOCK_ID =
+  process.env.NEXT_PUBLIC_WAREHOUSE_UNLOCK_SNOWPLOW_ID ?? '';
+
 type SignalsAttributes = Record<string, unknown>;
+type WarehouseTab = 'stream' | 'warehouse';
 
 // ─── Value formatting ─────────────────────────────────────────────────────────
 
@@ -109,7 +133,10 @@ function writeStickyUserId(sid: string, userId: string): void {
 
 export default function SignalsInspector() {
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<WarehouseTab>('stream');
   const [attrs, setAttrs] = useState<SignalsAttributes | null>(null);
+  const [warehouseAttrs, setWarehouseAttrs] =
+    useState<SignalsAttributes | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [domainUserid, setDomainUserid] = useState<string | null>(null);
   const [snowplowId, setSnowplowId] = useState<string | null>(null);
@@ -141,7 +168,11 @@ export default function SignalsInspector() {
       const res = await fetch('/api/signals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: sid, domainUserid: duid }),
+        body: JSON.stringify({
+          sessionId: sid,
+          domainUserid: duid,
+          userId: currentEmail,
+        }),
       });
       const data = await res.json();
       if (typeof data?.meta?.signals_configured === 'boolean') {
@@ -149,6 +180,11 @@ export default function SignalsInspector() {
       }
       setSnowplowId(
         typeof data?.snowplow_id === 'string' ? data.snowplow_id : null
+      );
+      setWarehouseAttrs(
+        data?.warehouse_attributes && typeof data.warehouse_attributes === 'object'
+          ? data.warehouse_attributes
+          : null
       );
       if (data.success && data.attributes) {
         setAttrs(data.attributes);
@@ -180,6 +216,27 @@ export default function SignalsInspector() {
   const rows = attrs ? Object.entries(attrs) : [];
   const hasData = rows.length > 0 || !!sessionId;
   const clauses = evaluateClauses(attrs);
+
+  // ─── Warehouse (batch) tab gating ─────────────────────────────────────────
+  const warehouse = siteConfig.warehouse;
+  const warehouseEnabled = siteConfig.features.warehouse;
+  // Real service ⇒ always clickable (gate ignored). Mock ⇒ honor identityGate:
+  // unlock only when the resolved snowplow_id exactly matches the env value.
+  const warehouseUnlocked =
+    warehouse.source === 'service'
+      ? true
+      : !warehouse.identityGate
+        ? true
+        : !!WAREHOUSE_UNLOCK_ID && snowplowId === WAREHOUSE_UNLOCK_ID;
+  // Fall back to Stream if the warehouse tab is selected but (re)locked.
+  const effectiveTab: WarehouseTab =
+    activeTab === 'warehouse' && warehouseUnlocked ? 'warehouse' : 'stream';
+  const warehouseRows =
+    warehouse.source === 'service'
+      ? warehouseAttrs
+        ? Object.entries(warehouseAttrs)
+        : []
+      : Object.entries(warehouse.mockAttributes);
 
   return (
     <>
@@ -288,33 +345,112 @@ export default function SignalsInspector() {
 
                 <hr className="border-border" />
 
-                {/* Stream attributes */}
-                <section>
-                  <h4 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-heading">
-                    <Zap className="h-3 w-3" /> stream attributes
-                  </h4>
-                  {rows.length > 0 ? (
-                    <div className="space-y-2.5">
-                      {rows.map(([key, value]) => (
-                        <div
-                          key={key}
-                          className="flex items-start justify-between gap-3"
-                        >
-                          <code className="break-all font-mono text-xs text-muted">
-                            {key}
-                          </code>
-                          <span className="break-words text-right font-bold text-heading">
-                            {fmtValue(value)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted">
-                      No attributes yet — interact with the app to populate them.
-                    </p>
-                  )}
-                </section>
+                {/* Stream / Warehouse tabs (Identities above + Interventions
+                    below persist across both). */}
+                {warehouseEnabled && (
+                  <div className="flex gap-1 rounded-md bg-surface-raised p-1">
+                    <button
+                      onClick={() => setActiveTab('stream')}
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        effectiveTab === 'stream'
+                          ? 'bg-surface text-heading shadow-sm'
+                          : 'text-muted hover:text-heading'
+                      }`}
+                    >
+                      <Zap className="h-3 w-3" /> Stream
+                    </button>
+                    <button
+                      onClick={() =>
+                        warehouseUnlocked && setActiveTab('warehouse')
+                      }
+                      disabled={!warehouseUnlocked}
+                      title={
+                        warehouseUnlocked
+                          ? undefined
+                          : 'Unlocks once Snowplow Identity resolves the ID'
+                      }
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        !warehouseUnlocked
+                          ? 'cursor-not-allowed text-muted/50'
+                          : effectiveTab === 'warehouse'
+                            ? 'bg-surface text-heading shadow-sm'
+                            : 'text-muted hover:text-heading'
+                      }`}
+                    >
+                      {warehouseUnlocked ? (
+                        <Database className="h-3 w-3" />
+                      ) : (
+                        <Lock className="h-3 w-3" />
+                      )}{' '}
+                      Warehouse
+                    </button>
+                  </div>
+                )}
+
+                {effectiveTab === 'warehouse' ? (
+                  /* Warehouse (batch) attributes */
+                  <section>
+                    <h4 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-heading">
+                      <Database className="h-3 w-3" /> warehouse attributes
+                    </h4>
+                    {warehouseRows.length > 0 ? (
+                      <div className="space-y-2.5">
+                        {warehouseRows.map(([key, value]) => (
+                          <div
+                            key={key}
+                            className="flex items-start justify-between gap-3"
+                          >
+                            <code className="break-all font-mono text-xs text-muted">
+                              {key}
+                            </code>
+                            <span className="break-words text-right font-bold text-heading">
+                              {fmtValue(value)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted">
+                        {warehouse.source === 'service'
+                          ? 'No batch attributes yet for this identifier.'
+                          : 'No mock attributes configured.'}
+                      </p>
+                    )}
+                    {warehouse.source === 'mock' && (
+                      <p className="mt-3 text-[10px] uppercase tracking-wider text-muted/70">
+                        mock data
+                      </p>
+                    )}
+                  </section>
+                ) : (
+                  /* Stream attributes */
+                  <section>
+                    <h4 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-heading">
+                      <Zap className="h-3 w-3" /> stream attributes
+                    </h4>
+                    {rows.length > 0 ? (
+                      <div className="space-y-2.5">
+                        {rows.map(([key, value]) => (
+                          <div
+                            key={key}
+                            className="flex items-start justify-between gap-3"
+                          >
+                            <code className="break-all font-mono text-xs text-muted">
+                              {key}
+                            </code>
+                            <span className="break-words text-right font-bold text-heading">
+                              {fmtValue(value)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted">
+                        No attributes yet — interact with the app to populate them.
+                      </p>
+                    )}
+                  </section>
+                )}
 
                 {clauses.length > 0 && (
                   <>

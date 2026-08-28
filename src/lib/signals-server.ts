@@ -56,6 +56,30 @@ export async function getRawSessionAttributes(
 }
 
 /**
+ * Fetch batch (warehouse) attributes from a real Signals batch service for the
+ * Inspector's "Warehouse" tab. Only used when siteConfig.warehouse.source ===
+ * "service"; the identifier is resolved from the configured attribute key by the
+ * caller (api/signals). Returns null when Signals/the warehouse service is
+ * unconfigured or unreachable.
+ */
+export async function getWarehouseAttributes(
+  identifier: string
+): Promise<Record<string, unknown> | null> {
+  const client = readClient();
+  const service = siteConfig.warehouse.service;
+  if (!client || !service || !identifier) return null;
+  try {
+    return (await client.getServiceAttributes({
+      name: service,
+      attribute_key: siteConfig.warehouse.attributeKey,
+      identifier,
+    })) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Resolve the current snowplow_id for a browser via the shared `snowplow_id_retrieval`
  * service (attribute group `last_snowplow_id`), keyed by domain_userid. The service
  * serves a `snowplow_id` attribute derived from the pipeline's identity entity, so a

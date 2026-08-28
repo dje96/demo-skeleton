@@ -131,12 +131,38 @@ export interface SnowplowConfig {
   interventionClauses: InterventionClause[];
 }
 
+/**
+ * Warehouse (batch) attributes shown in the Signals Inspector's "Warehouse" tab,
+ * alongside the real-time "Stream" tab. Two ways to populate it:
+ *
+ *   • source: "service" — read a REAL Signals batch service. `service` +
+ *     `attributeKey` name it; the tab is always clickable and the identity gate
+ *     is ignored (real data speaks for itself).
+ *   • source: "mock" — render `mockAttributes`. Honors `identityGate`: when true,
+ *     the tab stays greyed/unclickable until the snowplow_id resolved in the
+ *     Identities section exactly equals NEXT_PUBLIC_WAREHOUSE_UNLOCK_SNOWPLOW_ID
+ *     (from .env). This mimics "batch attributes appear once Snowplow Identity
+ *     resolves the ID" for demos that don't have a real batch service wired.
+ */
+export interface WarehouseConfig {
+  source: "service" | "mock";
+  /** Signals batch service name (source === "service"). */
+  service: string;
+  /** Attribute key the batch service is keyed on (source === "service"). */
+  attributeKey: "domain_userid" | "domain_sessionid" | "snowplow_id" | "user_id";
+  /** Mock-only gate: grey the tab until the resolved snowplow_id matches env. */
+  identityGate: boolean;
+  /** Attributes rendered when source === "mock" (and unlocked, if gated). */
+  mockAttributes: Record<string, unknown>;
+}
+
 export interface SiteConfig {
   brand: {
     name: string;
     tagline: string;
   };
   snowplow: SnowplowConfig;
+  warehouse: WarehouseConfig;
   navigation: {
     mainMenu: NavItem[];
     footerLinks: NavItem[];
@@ -146,6 +172,8 @@ export interface SiteConfig {
     signals: boolean;
     video: boolean;
     consent: boolean;
+    /** Show the "Warehouse" (batch) tab in the Signals Inspector. */
+    warehouse: boolean;
   };
   marketing: {
     utmParameters: {
@@ -201,6 +229,20 @@ export const siteConfig: SiteConfig = {
       { attribute: "page_ping_count", label: "page_ping_count ≥ 5", operator: "gte", threshold: 5 },
     ],
   },
+  warehouse: {
+    // Skeleton default: mock data, gated on identity resolution — demos the
+    // "batch attributes populate once Snowplow Identity resolves the ID" story
+    // without needing a real batch service. Swap source to "service" (and set
+    // `service`/`attributeKey`) once a real Signals batch service exists.
+    source: "mock",
+    service: "",
+    attributeKey: "domain_userid",
+    identityGate: true,
+    mockAttributes: {
+      lifetime_orders: 7,
+      lifetime_value: 428.5,
+    },
+  },
   navigation: {
     mainMenu: [{ label: "Home", href: "/" }],
     footerLinks: [
@@ -213,6 +255,7 @@ export const siteConfig: SiteConfig = {
     signals: true,
     video: true,
     consent: true,
+    warehouse: true,
   },
   marketing: {
     utmParameters: {
