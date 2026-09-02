@@ -105,32 +105,6 @@ function evaluateClauses(attrs: SignalsAttributes | null): EvaluatedClause[] {
   });
 }
 
-// Sticky user_id: once a visitor has logged in this session we keep displaying
-// their user_id even after they log out, latched against the current
-// domain_sessionid so it survives reloads within the tab.
-const STICKY_USER_KEY = 'demo-signals-userid';
-
-function readStickyUserId(sid: string | null): string | null {
-  if (!sid || typeof window === 'undefined') return null;
-  try {
-    const raw = window.sessionStorage.getItem(STICKY_USER_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { sid?: string; userId?: string };
-    return parsed?.sid === sid ? parsed.userId ?? null : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStickyUserId(sid: string, userId: string): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.sessionStorage.setItem(STICKY_USER_KEY, JSON.stringify({ sid, userId }));
-  } catch {
-    // ignore storage failures
-  }
-}
-
 export default function SignalsInspector() {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<WarehouseTab>('stream');
@@ -156,12 +130,8 @@ export default function SignalsInspector() {
     const duid = getUserId() ?? null;
     setDomainUserid(duid);
 
-    if (currentEmail) {
-      writeStickyUserId(sid, currentEmail);
-      setUserId(currentEmail);
-    } else {
-      setUserId(readStickyUserId(sid));
-    }
+    // Mirror the live login state — user_id clears the moment the user logs out.
+    setUserId(currentEmail);
 
     try {
       setLoading(true);
