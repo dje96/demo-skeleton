@@ -1,0 +1,149 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Demo Design Tokens",
+  "description": "Design token file produced by the demo-design skill. All values are concrete (hex, rem, font strings), not semantic aliases.",
+  "type": "object",
+  "required": ["colors", "typography", "spacing", "borderRadius", "shadows", "componentPatterns"],
+  "properties": {
+    "colors": {
+      "type": "object",
+      "required": ["primary", "secondary", "accent", "background", "surface", "text"],
+      "properties": {
+        "primary": { "type": "string", "description": "Primary brand color, hex format" },
+        "secondary": { "type": "string", "description": "Secondary brand color" },
+        "accent": { "type": "string", "description": "Accent color for interactive elements" },
+        "highlight": { "type": "string", "description": "Highlight/CTA color, high contrast" },
+        "background": { "type": "string", "description": "Page background color" },
+        "surface": { "type": "string", "description": "Elevated surface color (cards, modals)" },
+        "border": { "type": "string", "description": "Default border color" },
+        "text": {
+          "type": "object",
+          "required": ["primary", "secondary", "inverse"],
+          "properties": {
+            "primary": { "type": "string", "description": "Primary text color" },
+            "secondary": { "type": "string", "description": "Muted/secondary text color" },
+            "inverse": { "type": "string", "description": "Text on dark backgrounds" },
+            "link": { "type": "string", "description": "Link text color" }
+          }
+        },
+        "status": {
+          "type": "object",
+          "description": "Optional status colors for UI feedback",
+          "properties": {
+            "success": { "type": "string" },
+            "warning": { "type": "string" },
+            "error": { "type": "string" },
+            "info": { "type": "string" }
+          }
+        }
+      }
+    },
+    "typography": {
+      "type": "object",
+      "required": ["fontFamily", "fontSize", "fontWeight"],
+      "properties": {
+        "fontFamily": {
+          "type": "object",
+          "required": ["heading", "body"],
+          "properties": {
+            "heading": { "type": "string", "description": "Font stack for headings, e.g. \"'Playfair Display', serif\"" },
+            "body": { "type": "string", "description": "Font stack for body text" },
+            "mono": { "type": "string", "description": "Monospace font for code/data" }
+          }
+        },
+        "fontSize": {
+          "type": "object",
+          "required": ["h1", "h2", "h3", "body", "small"],
+          "properties": {
+            "h1": { "type": "string" },
+            "h2": { "type": "string" },
+            "h3": { "type": "string" },
+            "h4": { "type": "string" },
+            "h5": { "type": "string" },
+            "body": { "type": "string" },
+            "small": { "type": "string" },
+            "nav": { "type": "string" }
+          }
+        },
+        "fontWeight": {
+          "type": "object",
+          "required": ["heading", "body"],
+          "properties": {
+            "heading": { "type": "string" },
+            "body": { "type": "string" },
+            "bold": { "type": "string" },
+            "light": { "type": "string" }
+          }
+        },
+        "lineHeight": {
+          "type": "object",
+          "properties": {
+            "heading": { "type": "string" },
+            "body": { "type": "string" },
+            "tight": { "type": "string" }
+          }
+        },
+        "letterSpacing": {
+          "type": "object",
+          "properties": {
+            "heading": { "type": "string" },
+            "body": { "type": "string" },
+            "wide": { "type": "string" }
+          }
+        }
+      }
+    },
+    "spacing": {
+      "type": "object",
+      "required": ["xs", "sm", "md", "lg", "xl"],
+      "properties": {
+        "xs": { "type": "string" },
+        "sm": { "type": "string" },
+        "md": { "type": "string" },
+        "lg": { "type": "string" },
+        "xl": { "type": "string" },
+        "2xl": { "type": "string" },
+        "section": { "type": "string", "description": "Vertical spacing between major page sections" },
+        "pageMaxWidth": { "type": "string", "description": "Max content width, e.g. '1280px'" }
+      }
+    },
+    "borderRadius": {
+      "type": "object",
+      "required": ["sm", "md", "lg"],
+      "properties": {
+        "sm": { "type": "string" },
+        "md": { "type": "string" },
+        "lg": { "type": "string" },
+        "full": { "type": "string" }
+      }
+    },
+    "shadows": {
+      "type": "object",
+      "required": ["sm", "md"],
+      "properties": {
+        "sm": { "type": "string" },
+        "md": { "type": "string" },
+        "lg": { "type": "string" }
+      }
+    },
+    "componentPatterns": {
+      "type": "object",
+      "description": "Prose descriptions of component styling patterns. These guide the build skill when generating fresh components.",
+      "properties": {
+        "nav": { "type": "string", "description": "Navigation layout and style (e.g., 'horizontal, sticky, logo left, links right, dark background')" },
+        "cards": { "type": "string", "description": "Card component pattern (e.g., 'rounded-lg, shadow-md, image top, padding-md, white background')" },
+        "buttons": {
+          "type": "object",
+          "properties": {
+            "primary": { "type": "string" },
+            "secondary": { "type": "string" },
+            "text": { "type": "string" }
+          }
+        },
+        "grid": { "type": "string", "description": "Grid layout pattern (columns, gap, responsive behavior)" },
+        "hero": { "type": "string", "description": "Hero/banner section pattern" },
+        "footer": { "type": "string", "description": "Site footer pattern (not the demo management footer)" }
+      }
+    }
+  }
+}
