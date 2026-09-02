@@ -1,5 +1,5 @@
 ---
-name: demo-builder-v4
+name: demo-builder
 description: >
   Build polished Snowplow demo web applications through a guided, multi-phase workflow.
   Use this skill whenever the user wants to build, scope, design, or create a Snowplow demo
@@ -47,7 +47,7 @@ Phase 4 is optional. Only proceed if the user wants custom tracking and/or a Sig
 
 Phase 4 is an **orchestration layer** over the Snowplow plugin skills (`tracking-design`, `signals`, `implementation-guidance`) and the Console MCP server. It scopes CDI vs CDI+Signals, drives the design/build/publish through those skills, then **hands off implementation to a subagent** (Snowtype + global contexts). It does not hand-author schemas or tracking code.
 
-**For each phase, read the corresponding sub-skill SKILL.md before starting work.** The sub-skills are located relative to this file in the `skills/` subdirectory. Each contains detailed instructions, and some include reference files, templates, and standards documents that must also be read before writing code.
+**For each phase, read the corresponding sub-skill SKILL.md before starting work.** The sub-skills are located relative to this file in the `skills/` subdirectory. Each contains detailed instructions, and some include reference files and scripts that must also be read before writing code.
 
 ### Phase routing
 

@@ -41,16 +41,24 @@ Stories not listed here (e.g., "data quality and governance") have **no special 
 
 This is a validation step, not a content/messaging change. The website should always feel like a real site for its industry. Do not embed use-case language into the UI (e.g., don't put "data governance" messaging on a media site).
 
-## Standards files
+## Integration contract & gotchas
 
-Before writing any code, read these files in `standards/`. They contain the behavioral specifications and known gotchas that prevent the most common build errors:
+The skeleton **is** the source of truth for how the Snowplow plumbing works — don't re-derive it from prose. The tracker config, plugins, page-view hook, consent flow, video tracking, cross-domain, Signals wiring, and identity stitch are all shipped, working, and building clean. You only theme them and fill `config.ts`. Read the skeleton's `README.md` for the reusable-file map, and the actual file if you need to understand behavior.
 
-1. **`standards/snowplow-baseline.md`** — Tracker config, dependencies, plugin registration, provider nesting, file creation order, common mistakes. Read this first.
-2. **`standards/snowplow-components-spec.md`** — Functional specs for auth, consent, video, cross-domain, Signals, UTM. Describes WHAT each component must do (SDK calls, localStorage keys, event payloads), not how it looks.
-3. **`standards/naming-conventions.md`** — app_id format, file naming, route structure, directory layout.
-4. **`standards/demo-management-spec.md`** — Footer panel structure, control order, why it's templated.
+What you **do** author (fresh UI + `config.ts`) must respect these contracts:
 
-These files are the source of truth for Snowplow integration behavior. The build skill generates the visual implementation, but the functional behavior must match these specs exactly.
+- **Auth / identity**: build the header + login/signup modal fresh, but drive identity only through `useUser()` from `@/contexts/user-context` — call `login` / `signup` / `logout`. The context handles `setUserId`, localStorage (`"demo-user"`), and the anonymous→known stitch. Do not call the tracker's identity APIs directly from your UI.
+- **Provider nesting is mandatory**: `SnowplowInit > UserProvider > children` (already wired in `layout.tsx` via `snowplow-init.tsx`). Login calls into the tracker, so `UserProvider` must sit inside `SnowplowInit`. Keep the root layout a server component.
+- **Feature flags**: gate any optional surface on `siteConfig.features.*` (`utmParameters`, `signals`, `video`, `consent`, `warehouse`) — same pattern the footer uses.
+- **No custom events in baseline**: baseline is OOTB only (page views, page pings, link clicks, consent, video). Do NOT add `trackSelfDescribingEvent` / custom schemas unless the user has explicitly moved to Phase 4. `tracking.ts` keeps `trackLogin` (used by the stitch) — leave the rest as a stub.
+- **Footer controls** (shipped in `DemoFooter.tsx`, theme only): UTM Reload → Manage Consent → Signals toggle → Watch Video, in that order. Presenters rely on the order being identical across demos.
+
+**Optional deps** (install only when a feature needs it — everything else is already pinned in the skeleton's `package.json`):
+```bash
+npm install @snowplow/browser-plugin-form-tracking   # form tracking
+npm install @snowplow/browser-plugin-web-vitals      # core web vitals
+npm install --save-dev @snowplow/snowtype             # custom tracking (Phase 4)
+```
 
 ## Build process
 
@@ -66,7 +74,7 @@ cd [app-id]
 rm -rf .git && git init -q
 ```
 
-The app-id comes from `demo-spec.json`. The skeleton ships, already wired and building clean (Next 16 / React 19 / TS / Tailwind v4): tracker init + all plugins, page-view hook, consent CMP, presenter DemoFooter, Signals Inspector, dual-path intervention banner, anonymous→known identity stitch, server-only Signals retrieval + `/api/signals`, and the YouTube tracking page. See the skeleton's `README.md` for the file map.
+The app-id comes from `demo-spec.json` and follows the format `demo-[scope]-web` (scope = industry/use-case/company in kebab-case, e.g. `demo-media-publishing-web`); the project directory matches it. The skeleton ships, already wired and building clean (Next 16 / React 19 / TS / Tailwind v4): tracker init + all plugins, page-view hook, consent CMP, presenter DemoFooter, Signals Inspector, dual-path intervention banner, anonymous→known identity stitch, server-only Signals retrieval + `/api/signals`, and the YouTube tracking page. See the skeleton's `README.md` for the file map.
 
 ### Step 2: Install dependencies
 
@@ -74,7 +82,7 @@ The app-id comes from `demo-spec.json`. The skeleton ships, already wired and bu
 npm install
 ```
 
-All required Snowplow + UI dependencies are already pinned in the skeleton's `package.json`. Do NOT re-run `create-next-app` or add core packages individually. Only add an OPTIONAL package from `standards/snowplow-baseline.md` if a specific feature needs it (e.g. form tracking, web vitals).
+All required Snowplow + UI dependencies are already pinned in the skeleton's `package.json`. Do NOT re-run `create-next-app` or add core packages individually. Only add an OPTIONAL package (see **Integration contract & gotchas** above) if a specific feature needs it (e.g. form tracking, web vitals).
 
 ### Step 3: Configure environment
 
@@ -82,7 +90,7 @@ All required Snowplow + UI dependencies are already pinned in the skeleton's `pa
 cp .env.example .env
 ```
 
-The skeleton's `.env.example` already contains the Snowplow Console keys and the Signals API host vars (`SIGNALS_API_URL`, `NEXT_PUBLIC_SNOWPLOW_SIGNALS_API_URL`). Leave the placeholder values as-is unless the user is wiring live Signals or Snowtype now — real values are only needed for Phase 5 or a live Signals demo. `.env` is already gitignored.
+The skeleton's `.env.example` already contains the Snowplow Console keys and the Signals API host vars (`SIGNALS_API_URL`, `NEXT_PUBLIC_SNOWPLOW_SIGNALS_API_URL`). Leave the placeholder values as-is unless the user is wiring live Signals or Snowtype now — real values are only needed for Phase 4 or a live Signals demo. `.env` is already gitignored.
 
 ### Step 4: Apply design tokens
 
@@ -99,13 +107,13 @@ The plumbing files below **already exist in the skeleton** — do not recreate t
 - **`src/contexts/user-context.tsx`**, **`src/components/{snowplow-init,ConsentManager,DemoFooter,SignalsInspector,InterventionBanner}.tsx`**, **`src/app/api/signals/route.ts`**, **`src/app/layout.tsx`**, **`src/app/video/page.tsx`** — reusable; theme only.
 
 **Generate fresh per demo:**
-1. **`src/lib/tracking.ts`** — replace the stub: swap the vendor Iglu URIs and add the demo's events/entities (ideally Snowtype-generated in Phase 5). Keep `trackLogin` (used by the identity stitch).
+1. **`src/lib/tracking.ts`** — replace the stub: swap the vendor Iglu URIs and add the demo's events/entities (ideally Snowtype-generated in Phase 4). Keep `trackLogin` (used by the identity stitch).
 2. **The header** — the skeleton ships NO header (auth/identity is headless). Build the demo's real nav / branding / sign-in as a new component and render it in `layout.tsx` where the marker comment is. Wire it to `useUser()` (`login` / `signup` / `logout`) from `@/contexts/user-context` so the anonymous→known identity stitch stays intact.
 3. **`src/app/page.tsx`** — replace the stub home with industry content.
 4. **Additional pages** per `demo-spec.json`.
 5. Wire the **`InterventionBanner`** copy/CTA to the demo's actual offer.
 
-**Image references in page components**: When creating pages (items 13-14), write components that reference image paths from the data/config (e.g., `restaurant.image`, `article.heroImage`), assuming real image files will exist in `public/images/` after Step 6. Do NOT write placeholder markup (colored divs, letter initials) when `demo-spec.json.imageApproach` is `"scrape"` or `"ai-generated"` — use `<img>` tags with paths that Step 6 will populate.
+**Image references in page components**: When creating pages (Step 5), write components that reference image paths from the data/config (e.g., `restaurant.image`, `article.heroImage`), assuming real image files will exist in `public/images/` after Step 6. Do NOT write placeholder markup (colored divs, letter initials) when `demo-spec.json.imageApproach` is `"scrape"` or `"ai-generated"` — use `<img>` tags with paths that Step 6 will populate.
 
 ### Step 6: Handle images
 
@@ -119,125 +127,11 @@ Based on `imageApproach` in the spec:
 
 #### Image scraping pipeline (Playwright)
 
-Write and execute a standalone Node.js script (`scripts/scrape-images.mjs`) that does the following. Do not try to scrape inline from the conversation — always use a script so failures produce readable errors.
+A ready-made script ships alongside this skill at `scripts/scrape-images.mjs` (relative to this SKILL.md). It launches headless Chromium, takes a reference screenshot, extracts `<img>` / CSS-background / `<picture>` image URLs (skipping tiny/data/SVG assets), and downloads them to `public/images/scraped/`. Copy it into the demo project's `scripts/` dir and run it — always as a script, not inline, so failures produce readable errors.
 
-```javascript
-import { chromium } from 'playwright';
-import { mkdirSync, createWriteStream } from 'fs';
-import { join, basename } from 'path';
-import https from 'https';
-import http from 'http';
-
-const TARGET_URL = process.argv[2]; // Pass the reference URL as CLI arg
-const OUT_DIR = join(process.cwd(), 'public/images/scraped');
-const SCREENSHOT_DIR = join(process.cwd(), 'screenshots');
-
-mkdirSync(OUT_DIR, { recursive: true });
-mkdirSync(SCREENSHOT_DIR, { recursive: true });
-
-function downloadFile(url, dest) {
-  return new Promise((resolve, reject) => {
-    const mod = url.startsWith('https') ? https : http;
-    const file = createWriteStream(dest);
-    mod.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        // Follow redirect
-        return downloadFile(res.headers.location, dest).then(resolve).catch(reject);
-      }
-      if (res.statusCode !== 200) {
-        file.close();
-        return reject(new Error(`HTTP ${res.statusCode} for ${url}`));
-      }
-      res.pipe(file);
-      file.on('finish', () => { file.close(); resolve(dest); });
-    }).on('error', reject);
-  });
-}
-
-const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
-const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-await page.goto(TARGET_URL, { waitUntil: 'networkidle', timeout: 30000 });
-
-// Take a reference screenshot
-await page.screenshot({ path: join(SCREENSHOT_DIR, 'scrape-reference.png'), fullPage: true });
-
-// Extract all meaningful image URLs from the page
-const images = await page.evaluate(() => {
-  const seen = new Set();
-  const results = [];
-
-  // <img> elements
-  document.querySelectorAll('img[src]').forEach(img => {
-    const src = img.src;
-    const w = img.naturalWidth || img.width || 0;
-    // Skip tiny images (icons, tracking pixels, spacers)
-    if (w > 0 && w < 50) return;
-    // Skip data URIs and SVG inlines
-    if (src.startsWith('data:') || src.endsWith('.svg')) return;
-    if (!seen.has(src)) {
-      seen.add(src);
-      results.push({
-        src,
-        alt: img.alt || '',
-        width: w,
-        height: img.naturalHeight || img.height || 0,
-        context: img.closest('section, article, header, main, [class*="hero"], [class*="card"]')?.className || 'unknown'
-      });
-    }
-  });
-
-  // CSS background images on major sections
-  document.querySelectorAll('section, [class*="hero"], [class*="banner"], [class*="card"]').forEach(el => {
-    const bg = getComputedStyle(el).backgroundImage;
-    if (bg && bg !== 'none') {
-      const match = bg.match(/url\(["']?(https?:\/\/[^"')]+)["']?\)/);
-      if (match && !seen.has(match[1])) {
-        seen.add(match[1]);
-        results.push({ src: match[1], alt: 'bg', width: 0, height: 0, context: el.className || 'background' });
-      }
-    }
-  });
-
-  // <source> inside <picture> elements
-  document.querySelectorAll('picture source[srcset]').forEach(source => {
-    const srcset = source.srcset;
-    // Take the largest image from srcset
-    const urls = srcset.split(',').map(s => s.trim().split(/\s+/)[0]);
-    const url = urls[urls.length - 1];
-    if (url && !url.startsWith('data:') && !seen.has(url)) {
-      seen.add(url);
-      results.push({ src: url, alt: 'picture-source', width: 0, height: 0, context: 'picture' });
-    }
-  });
-
-  return results;
-});
-
-console.log(`Found ${images.length} images`);
-
-// Download images, skipping failures
-let downloaded = 0;
-for (const img of images) {
-  try {
-    const urlObj = new URL(img.src);
-    const ext = basename(urlObj.pathname).split('?')[0] || `image-${downloaded}.jpg`;
-    const filename = ext.length > 80 ? `image-${downloaded}.jpg` : ext;
-    await downloadFile(img.src, join(OUT_DIR, filename));
-    downloaded++;
-    console.log(`  Downloaded: ${filename} (${img.alt || 'no alt'})`);
-  } catch (e) {
-    console.warn(`  Skipped: ${img.src} — ${e.message}`);
-  }
-}
-
-await browser.close();
-console.log(`\nDone. ${downloaded}/${images.length} images saved to ${OUT_DIR}`);
-```
-
-**Run the script**:
 ```bash
-npx playwright install chromium  # Ensure browser is available
-node scripts/scrape-images.mjs "https://example.com"
+npx playwright install chromium              # ensure browser is available
+node scripts/scrape-images.mjs "https://example.com"   # pass the reference URL
 ```
 
 **After scraping**, organize the downloaded images into subdirectories (`heroes/`, `products/`, `articles/`, `logos/`, etc.) based on context and content. Rename files to be descriptive. Delete any images that are clearly irrelevant (ad banners, social icons, tracking pixels that slipped through).
@@ -254,19 +148,19 @@ node scripts/scrape-images.mjs "https://example.com"
 
 Before showing the user, run a systematic quality check to catch common errors:
 
-**6a. TypeScript compilation check**
+**7a. TypeScript compilation check**
 ```bash
 npx tsc --noEmit
 ```
 Fix any type errors before proceeding. Common issues: missing imports, incorrect prop types, untyped event handlers.
 
-**6b. Build check**
+**7b. Build check**
 ```bash
 npm run build
 ```
 This catches issues that `tsc` alone misses (Next.js-specific errors, missing page exports, invalid route segments). Fix any build errors before proceeding.
 
-**6c. Dev server verification**
+**7c. Dev server verification**
 ```bash
 npm run dev
 ```
@@ -278,12 +172,12 @@ Check for:
 
 If either the TypeScript or build check fails, fix the errors and re-run before moving on. Do not ask the user to debug build failures you can resolve.
 
-**6d. Kill the dev server**
+**7d. Kill the dev server**
 
 After dev server verification is complete, always kill the dev server process before moving on. A lingering background `next dev` process will block future `npm run dev` calls and cause port conflicts.
 
 ```bash
-# Kill the dev server started in 6c
+# Kill the dev server started in 7c
 kill %1 2>/dev/null || true
 # Or if started via Bash tool with run_in_background, the process ID is available
 ```
@@ -305,7 +199,7 @@ After the build is working, always ask the user how to proceed via `AskUserQuest
 
 The **demo-skeleton** clone (Step 1) ships the whole plumbing baseline. These files are reusable across every demo; you only theme them and point `src/lib/config.ts` at the demo's Console resources:
 
-**Presenter footer (`DemoFooter.tsx`)**: The functional Snowplow SDK controls (UTM reload, clear identity, consent, Signals toggle, video). Same controls, same order every time — only the theme classes change. See `standards/demo-management-spec.md`.
+**Presenter footer (`DemoFooter.tsx`)**: The functional Snowplow SDK controls (UTM reload, clear identity, consent, Signals toggle, video). Same controls, same order every time — only the theme classes change.
 
 **Tracker (`snowplow-config.ts`)**: SDK init, plugin list, page views, consent/session/identity helpers, and the Signals intervention wiring (incl. the `sessionOnlyFetcher` and `suppressBenignTrackerNoise` fixes). Collector/Signals endpoints, appId, service and intervention names all come from the `snowplow` block in `config.ts` — nothing demo-specific is hardcoded.
 
@@ -324,9 +218,9 @@ The industry UI. The build skill generates these to match the demo's industry, a
 
 A media publishing demo should have a content-dense nav with categories and a serif-heavy editorial layout. A fintech demo should have a clean sidebar dashboard. An e-commerce demo should have a search-forward header with cart icon. Use the `componentPatterns` from `design-tokens.json` and the industry context from `demo-spec.json` to make each demo look distinctive.
 
-### Guided by specs (not templated, but behavior is standardized)
+### The one thing you author against a contract
 
-Auth, consent, video, cross-domain, Signals, and UTM components are generated fresh each time (so they match the demo's visual style), but their Snowplow integration behavior must match `standards/snowplow-components-spec.md` exactly. The spec defines the SDK calls, localStorage keys, event payloads, and edge cases. The build skill is responsible for the visual implementation.
+Only the auth surface (header + login/signup modal) is genuinely built fresh — its Snowplow behavior lives in the shipped `user-context.tsx`, so wire the UI to `useUser()` (see **Integration contract & gotchas** above) rather than reimplementing identity. Consent, video, cross-domain, Signals, and UTM are shipped components you theme, not rebuild.
 
 ## Config-driven architecture
 
@@ -348,10 +242,6 @@ interface SiteConfig {
 
 The `sources` array (Google, Facebook, LinkedIn, Twitter, email, Slack, etc.) stays the same across demos. The `campaigns` array gets themed per vertical (e.g., media demos get campaigns like "summer-reading-series", "breaking-news-alert"; ecommerce gets "spring-sale", "flash-deal").
 
-## Provider nesting order
-
-Follow the mandatory nesting order defined in `standards/snowplow-baseline.md`: SnowplowInit > UserProvider > children. Getting this wrong causes subtle bugs (user_id not attached to events, page views before tracker ready).
-
 ## Design quality
 
 Follow the design principles from Phase 2 (`demo-design/SKILL.md`). Match the `componentPatterns` from `design-tokens.json` and vary component treatments to avoid generic AI aesthetics.
@@ -363,8 +253,7 @@ If the build fails or the user reports issues:
 1. Check TypeScript errors first (`npx tsc --noEmit`)
 2. Check the Next.js build (`npm run build`)
 3. Check the browser console for runtime errors
-4. Common issues are documented in `standards/snowplow-baseline.md` under "Common mistakes to avoid"
-5. If a Snowplow component isn't working, compare its behavior against `standards/snowplow-components-spec.md`
+4. If a Snowplow component isn't working, read the shipped file directly (it's the source of truth) and confirm your fresh UI respects the **Integration contract & gotchas** above — most breakage is authoring against the tracker directly instead of through `useUser()` / config, or wrong provider nesting
 
 Use `AskUserQuestion` to triage:
 
