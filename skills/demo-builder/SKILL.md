@@ -45,7 +45,7 @@ Default flow is Phase 1 > 2 > 3 > 4. Users can skip phases explicitly ("I alread
 
 Phase 4 is optional. Only proceed if the user wants custom tracking and/or a Signals demo beyond the baseline.
 
-Phase 4 is an **orchestration layer** over the Snowplow plugin skills (`tracking-design`, `signals`, `implementation-guidance`) and the Console MCP server. It scopes CDI vs CDI+Signals, drives the design/build/publish through those skills, then **hands off implementation to a subagent** (Snowtype + global contexts). It does not hand-author schemas or tracking code.
+Phase 4 is an **orchestration layer** over the Snowplow plugin skills (`tracking-design`, `signals`, `implementation-guidance`, `console-operations`, and `troubleshooting`) and the Console MCP server. It scopes CDI vs CDI+Signals, drives the design/build/publish through those skills, then **hands off implementation to a subagent** (Snowtype + global contexts). It does not hand-author schemas or tracking code.
 
 **For each phase, read the corresponding sub-skill SKILL.md before starting work.** The sub-skills are located relative to this file in the `skills/` subdirectory. Each contains detailed instructions, and some include reference files and scripts that must also be read before writing code.
 
@@ -74,8 +74,8 @@ If ambiguous, ask the user which phase to start via `AskUserQuestion`.
   - App source code is at the project root (already scaffolded in the skeleton).
 - **Terminology**: Use "behavioral data," "data creation" (not "data collection" or "tracking users"). See the Snowplow company context for the full terminology guide.
 - **Design quality**: Demos must look polished and distinctive, not like generic AI-generated applications. Study the reference site or industry leaders. Prioritize information density, asymmetric layouts, and restrained use of color.
-- **Baseline tracking only**: Do not add custom self-describing events unless the user explicitly moves to Phase 4. Baseline is page views, page pings, link clicks, consent events, and video events.
-- **Schemas stay in Console**: Never create schemas via CLI or MCP. All schema creation happens in the Snowplow Console (manually or via the Tracking Design Agent).
+- **Baseline tracking only**: Do not add custom self-describing events unless the user explicitly moves to Phase 4. Baseline is page views, page pings, consent events, and video events.
+- **Schemas stay in Console**: All schema creation happens in the Snowplow Console manually or via the Snowplow MCP server. Do not create local schemas using the CLI.
 
 ## Environment
 
